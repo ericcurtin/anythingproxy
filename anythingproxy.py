@@ -42,11 +42,20 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         try:
             with urllib.request.urlopen(request) as response:
                 self.send_response(response.status)
+
+                hop_by_hop_headers = ['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailers', 'transfer-encoding', 'upgrade']
                 for key, value in response.getheaders():
+                    if key.lower() in hop_by_hop_headers:
+                        continue
+
                     self.send_header(key, value)
+
                 self.end_headers()
-                response_data = response.read()
-                self.wfile.write(response_data)
+                response_data = ""
+                for line in response:
+                    self.wfile.write(line)
+                    self.wfile.flush()
+                    response_data += line.decode("utf-8")
 
                 # Print response details
                 self.print_response_details(response, response_data)
@@ -83,7 +92,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 json_data = json.loads(data)
                 print(f"Body (JSON): {json.dumps(json_data, indent=4)}")
             except json.JSONDecodeError:
-                print(f"Body: {data.decode('utf-8')}")
+                print(f"Body: {data}")
         else:
             print("Body: None")
         print(f"-------------------\n")
